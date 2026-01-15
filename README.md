@@ -62,6 +62,9 @@ sudo AUTO_INJECT_DEFAULT_PUBKEY=1 \
 
 # Run all scripts (lexicographic order)
 ./bin/boot.sh --all
+
+# Interactive menu
+./bin/boot.sh --menu
 ```
 
 **Run A Single Script**

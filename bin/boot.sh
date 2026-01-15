@@ -16,11 +16,13 @@ Usage:
   boot.sh --run <name> [-- <args...>]
   boot.sh --all
   boot.sh --bootstrap [--dir <path>]
+  boot.sh --menu
 
 Notes:
 - Scripts are loaded from ./scripts/*.sh
 - Order for --all is lexicographic; use numeric prefixes to control order.
 - --bootstrap downloads known scripts when scripts dir is empty.
+ - --menu provides an interactive selector.
 EOF
 }
 
@@ -84,6 +86,62 @@ resolve_script() {
   printf '%s' "$cand"
 }
 
+interactive_menu() {
+  local scripts=()
+  while IFS= read -r s; do
+    scripts+=("$s")
+  done < <(list_scripts)
+
+  if [[ ${#scripts[@]} -eq 0 ]]; then
+    echo "no scripts found in $SCRIPTS_DIR" >&2
+    return 1
+  fi
+
+  while true; do
+    echo ""
+    echo "boot-scripts menu"
+    echo "----------------------------------------"
+    local i=1
+    for s in "${scripts[@]}"; do
+      printf " %2d) %s\n" "$i" "$s"
+      i=$((i + 1))
+    done
+    echo "  a) run all"
+    echo "  r) refresh list"
+    echo "  q) quit"
+    echo ""
+
+    read -rp "select: " choice
+    case "$choice" in
+      q|Q) return 0 ;;
+      r|R)
+        scripts=()
+        while IFS= read -r s; do
+          scripts+=("$s")
+        done < <(list_scripts)
+        ;;
+      a|A)
+        local script
+        for script in "${scripts[@]}"; do
+          run_script "$SCRIPTS_DIR/$script.sh"
+        done
+        ;;
+      *)
+        if [[ "$choice" =~ ^[0-9]+$ ]]; then
+          local idx=$((choice - 1))
+          if (( idx >= 0 && idx < ${#scripts[@]} )); then
+            run_script "$SCRIPTS_DIR/${scripts[$idx]}.sh"
+          else
+            echo "invalid selection: $choice" >&2
+          fi
+        else
+          echo "invalid selection: $choice" >&2
+        fi
+        ;;
+    esac
+  done
+}
+
 run_script() {
   local script="$1"
   shift
@@ -139,6 +197,9 @@ main() {
         dir="${2:-$SCRIPTS_DIR}"
       fi
       download_scripts "$dir"
+      ;;
+    --menu)
+      interactive_menu
       ;;
     -h|--help)
       usage
