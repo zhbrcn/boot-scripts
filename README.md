@@ -2,6 +2,15 @@
 
 此仓库用于个人开机启动脚本集合。每个功能独立为一个 `.sh`，统一入口脚本用于批量执行，也可单独运行。
 
+**一键运行（推荐先看脚本内容）**
+```bash
+curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/bin/boot.sh -o /tmp/boot.sh \
+  && curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/scripts/sshman.sh -o /tmp/sshman.sh \
+  && curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/scripts/fix-time.sh -o /tmp/fix-time.sh \
+  && chmod +x /tmp/boot.sh /tmp/sshman.sh /tmp/fix-time.sh \
+  && sudo /tmp/boot.sh --all
+```
+
 **配置教程**
 1) 创建配置文件（推荐）
    - 文件: `/etc/ssh/sshman.conf`
