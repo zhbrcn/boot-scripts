@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCRIPTS_DIR="$ROOT_DIR/scripts"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -d "$SCRIPT_DIR/../scripts" ]]; then
+  ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+else
+  ROOT_DIR="$SCRIPT_DIR"
+fi
+SCRIPTS_DIR="${BOOT_SCRIPTS_DIR:-$ROOT_DIR/scripts}"
 
 usage() {
   cat <<'EOF'
@@ -10,10 +15,12 @@ Usage:
   boot.sh --list
   boot.sh --run <name> [-- <args...>]
   boot.sh --all
+  boot.sh --bootstrap [--dir <path>]
 
 Notes:
 - Scripts are loaded from ./scripts/*.sh
 - Order for --all is lexicographic; use numeric prefixes to control order.
+- --bootstrap downloads known scripts when scripts dir is empty.
 EOF
 }
 
@@ -27,6 +34,36 @@ list_scripts() {
   for f in "${files[@]}"; do
     basename "$f" .sh
   done | sort
+}
+
+download_scripts() {
+  local out_dir="${1:-$SCRIPTS_DIR}"
+  local base_url="${BOOT_SCRIPTS_BASE_URL:-https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/scripts}"
+  local scripts=("sshman.sh" "fix-time.sh")
+
+  mkdir -p "$out_dir"
+  local downloader=""
+  if command -v curl >/dev/null 2>&1; then
+    downloader="curl -fsSL"
+  elif command -v wget >/dev/null 2>&1; then
+    downloader="wget -qO-"
+  else
+    echo "neither curl nor wget found; cannot bootstrap" >&2
+    return 1
+  fi
+
+  local name url tmp
+  for name in "${scripts[@]}"; do
+    url="${base_url}/${name}"
+    tmp="${out_dir}/${name}.tmp"
+    if ! $downloader "$url" >"$tmp"; then
+      echo "failed to download: $url" >&2
+      rm -f "$tmp"
+      return 1
+    fi
+    mv "$tmp" "${out_dir}/${name}"
+    chmod +x "${out_dir}/${name}" || true
+  done
 }
 
 resolve_script() {
@@ -94,6 +131,14 @@ main() {
       for script in "${scripts[@]}"; do
         run_script "$script"
       done
+      ;;
+    --bootstrap)
+      shift
+      local dir="$SCRIPTS_DIR"
+      if [[ "${1:-}" == "--dir" ]]; then
+        dir="${2:-$SCRIPTS_DIR}"
+      fi
+      download_scripts "$dir"
       ;;
     -h|--help)
       usage

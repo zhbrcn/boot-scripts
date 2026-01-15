@@ -5,9 +5,8 @@
 **一键运行（推荐先看脚本内容）**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/bin/boot.sh -o /tmp/boot.sh \
-  && curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/scripts/sshman.sh -o /tmp/sshman.sh \
-  && curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/scripts/fix-time.sh -o /tmp/fix-time.sh \
-  && chmod +x /tmp/boot.sh /tmp/sshman.sh /tmp/fix-time.sh \
+  && chmod +x /tmp/boot.sh \
+  && /tmp/boot.sh --bootstrap --dir /tmp/scripts \
   && sudo /tmp/boot.sh --all
 ```
 
