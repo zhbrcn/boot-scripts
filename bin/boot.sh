@@ -77,9 +77,17 @@ bootstrap_scripts() {
   elif has_cmd wget; then
     downloader="wget -qO-"
   else
-    echo "error: neither curl nor wget found" >&2
-    echo "  on a fresh Debian: sudo apt-get install curl" >&2
-    return 1
+    echo "  curl/wget not found — installing curl…" >&2
+    if is_root; then
+      apt-get update -qq && apt-get install -y curl 2>/dev/null || {
+        echo "error: apt-get install curl failed" >&2
+        return 1
+      }
+      downloader="curl -fsSL"
+    else
+      echo "error: neither curl nor wget found — run with sudo" >&2
+      return 1
+    fi
   fi
 
   for name in "${scripts[@]}"; do
