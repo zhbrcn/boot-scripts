@@ -10,6 +10,9 @@
 
 set -euo pipefail
 
+# ── Minimal helpers (available before lib load) ───────────────────────────────
+has_cmd() { command -v "$1" >/dev/null 2>&1; }
+
 # ── Paths ─────────────────────────────────────────────────────────────────────
 _src="${BASH_SOURCE[0]}"
 _bin_dir="$(cd "$(dirname "$_src")" && pwd)"
@@ -75,6 +78,7 @@ bootstrap_scripts() {
     downloader="wget -qO-"
   else
     echo "error: neither curl nor wget found" >&2
+    echo "  on a fresh Debian: sudo apt-get install curl" >&2
     return 1
   fi
 
