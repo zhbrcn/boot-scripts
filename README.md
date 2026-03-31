@@ -1,101 +1,184 @@
-# boot-scripts - Personal boot scripts
+# boot-scripts
 
-此仓库用于个人开机启动脚本集合。每个功能独立为一个 `.sh`，统一入口脚本用于批量执行，也可单独运行。
+Personal server bootstrap scripts — run on boot to configure a fresh VPS or recovered snapshot to your preferred state.
 
-**一键运行（推荐先看脚本内容）**
+Each script is **standalone** and **idempotent**: safe to run repeatedly, and works whether or not it's the first time.
+
+---
+
+## What it does
+
+| Script | What it handles |
+|--------|----------------|
+| `sshman` | SSH hardening, authorized keys, YubiKey 2FA, one-click presets |
+| `fix-time` | NTP sync with HTTP Date header fallback (for VPS snapshots with wrong time) |
+| `sysinfo` | System information display |
+
+The unified entry point `bin/boot.sh` can run all scripts in sequence or launch an interactive menu.
+
+---
+
+## Quick start
+
+### One-liner bootstrap
+
+Download everything and run the interactive menu:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/bin/boot.sh -o /tmp/boot.sh \
   && chmod +x /tmp/boot.sh \
   && /tmp/boot.sh --bootstrap --dir /tmp/scripts \
-  && sudo /tmp/boot.sh --all
+  && /tmp/boot.sh --menu
 ```
 
-**配置教程**
-1) 创建配置文件（推荐）
-   - 文件: `/etc/ssh/sshman.conf`
-   - 示例:
+### Run all scripts automatically
+
 ```bash
-# 目标用户（默认使用 SUDO_USER/USER）
-TARGET_USER="root"
-# TARGET_HOME="/root"
-
-# 默认公钥注入（默认关闭）
-AUTO_INJECT_DEFAULT_PUBKEY="1"
-DEFAULT_PUBKEY="ssh-ed25519 AAAA... your_key_comment"
-
-# YubiKey（可选，仅启用时需要）
-HARDENED_YUBIKEYS="root:cccccbenueru:cccccbejiijg"
-YUBI_CLIENT_ID="85975"
-YUBI_SECRET_KEY="base64_secret"
-
-# 如需自定义授权公钥路径
-# AUTHORIZED_KEYS="/root/.ssh/authorized_keys"
+sudo /tmp/boot.sh --all
 ```
-2) 临时用环境变量覆盖
+
+---
+
+## Interactive TUI
+
 ```bash
-sudo AUTO_INJECT_DEFAULT_PUBKEY=1 \
-  DEFAULT_PUBKEY="ssh-ed25519 AAAA..." \
-  ./scripts/sshman.sh
-```
-3) 配置写入位置说明
-- 如果存在 `/etc/ssh/sshd_config.d/`，脚本会写入 `/etc/ssh/sshd_config.d/99-sshman.conf`；否则回退到 `/etc/ssh/sshd_config`。
-
-**编码提示（Windows）**
-- 若在 Windows 上出现乱码，请确保文件以 UTF-8 打开，或在终端执行 `chcp 65001`。
-
-**Directory Structure**
-- `bin/boot.sh` 统一入口，支持 `--list` / `--run` / `--all`
-- `scripts/*.sh` 功能脚本（可单独执行）
-- `systemd/boot-scripts.service` 示例 systemd 服务文件
-
-**Naming Convention**
-- 统一使用小写 + 中划线（kebab-case），例如 `fix-time.sh`
-- 需要固定执行顺序时，用数字前缀控制：`00-xxx.sh`, `10-xxx.sh`
-
-**Usage**
-```bash
-# List available scripts
-./bin/boot.sh --list
-
-# Run one script (pass args after --)
-./bin/boot.sh --run fix-time -- --install-service
-
-# Run all scripts (lexicographic order)
-./bin/boot.sh --all
-
-# Interactive menu
 ./bin/boot.sh --menu
 ```
 
-**Run A Single Script**
+Opens a color-coded menu with:
+- System info dashboard
+- SSH configuration (interactive, toggle settings, manage keys)
+- Time fix
+- Run all scripts
+
+---
+
+## Per-script usage
+
+### sshman
+
 ```bash
-chmod +x ./scripts/*.sh
-./scripts/sshman.sh
-./scripts/fix-time.sh --install-service
+sudo ./scripts/sshman.sh                  # interactive TUI
+sudo ./scripts/sshman.sh --status         # show current SSH config
+sudo ./scripts/sshman.sh --apply hardened-prod   # apply preset + exit
+sudo ./scripts/sshman.sh --apply daily-dev      # daily dev preset
 ```
 
-**Systemd Autostart (example)**
+**Presets:**
+
+| Preset | RootLogin | PasswordAuth | PubkeyAuth |
+|--------|-----------|--------------|------------|
+| `hardened-prod` | denied | off | on |
+| `daily-dev` | key-only | on | on |
+| `temp-open` | allowed | on | on |
+
+**Configuration file** (`/etc/boot-scripts/sshman.conf` or `~/.config/boot-scripts/sshman.conf`):
+
 ```bash
+AUTO_INJECT_DEFAULT_PUBKEY="1"
+DEFAULT_PUBKEY="ssh-ed25519 AAAA... your@email"
+TARGET_USER="root"
+```
+
+### fix-time
+
+```bash
+sudo ./scripts/fix-time.sh                # run once
+sudo ./scripts/fix-time.sh --status        # show time status only
+sudo ./scripts/fix-time.sh --install       # install as systemd oneshot at boot
+```
+
+Logic: NTP via `systemd-timesyncd` → HTTP Date header fallback → write to RTC.
+
+### sysinfo
+
+```bash
+./scripts/sysinfo.sh
+```
+
+Shows: OS, CPU, RAM, disk, IP addresses, Docker version, SSH/NTP service status.
+
+---
+
+## Systemd service (auto-run on boot)
+
+```bash
+# Install
+sudo make install
+
+# Or manually
 sudo cp systemd/boot-scripts.service /etc/systemd/system/
-sudo sed -i 's|/opt/sshman|/path/to/sshman|g' /etc/systemd/system/boot-scripts.service
+sudo sed -i 's|%SCRIPT_DIR%|/opt/boot-scripts|g' /etc/systemd/system/boot-scripts.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now boot-scripts.service
+
+# Test without rebooting
+sudo systemctl start boot-scripts
 ```
 
-**Direct Download (raw)**
-```bash
-curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/scripts/sshman.sh -o sshman.sh \
-  && chmod +x sshman.sh \
-  && sudo ./sshman.sh
+The service runs `boot.sh --all` as a oneshot on every boot.
+
+---
+
+## Directory layout
+
 ```
+boot-scripts/
+├── bin/
+│   └── boot.sh              # Unified entry point
+├── lib/
+│   ├── common.sh            # Shared utilities (root check, backup, logging, SSH helpers)
+│   └── ui.sh                # Shared TUI components (colors, boxes, menus, spinner)
+├── scripts/
+│   ├── sshman.sh            # SSH configuration manager
+│   ├── fix-time.sh          # Time sync with fallback
+│   └── sysinfo.sh           # System information display
+├── config/
+│   └── sshman.conf.example  # Config template
+├── systemd/
+│   └── boot-scripts.service # Systemd oneshot service
+├── Makefile
+├── .shellcheckrc
+└── README.md
+```
+
+---
+
+## Requirements
+
+- Debian/Ubuntu (uses `apt-get`, `systemd-timesyncd`, `systemctl`)
+- Bash ≥ 4.0
+- Root privileges (for SSH config and service management)
+- Internet (for NTP and time bootstrap)
+
+---
+
+## Direct download (individual scripts)
+
 ```bash
+# sshman
+curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/scripts/sshman.sh -o sshman.sh \
+  && chmod +x sshman.sh && sudo ./sshman.sh
+
+# fix-time
 curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/scripts/fix-time.sh | sudo bash
 ```
+
+---
+
+## Install as a repo on a new VPS
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/scripts/fix-time.sh | sudo bash -s -- --install-service
+git clone https://github.com/zhbrcn/boot-scripts.git /opt/boot-scripts
+cd /opt/boot-scripts
+sudo make install
 ```
+
+Or without git:
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/scripts/fix-time.sh -o /tmp/fix-time.sh \
-  && sed -n '1,200p' /tmp/fix-time.sh \
-  && sudo bash /tmp/fix-time.sh --install-service
+curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/bin/boot.sh -o boot.sh \
+  && chmod +x boot.sh \
+  && ./boot.sh --bootstrap \
+  && sudo ./boot.sh --all
 ```

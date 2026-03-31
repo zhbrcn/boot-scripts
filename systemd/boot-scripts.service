@@ -5,8 +5,12 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/sshman
-ExecStart=/opt/sshman/bin/boot.sh --all
+# Path to this repository (edit if you move it)
+Environment=BOOT_SCRIPTS_DIR=%SCRIPT_DIR%/scripts
+WorkingDirectory=%SCRIPT_DIR%
+ExecStart=%SCRIPT_DIR%/bin/boot.sh --all
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

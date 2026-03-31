@@ -1,0 +1,33 @@
+# sshman.conf.example — Configuration for sshman.sh
+#
+# Copy this file to:
+#   /etc/boot-scripts/sshman.conf        (system-wide, root only)
+#   ~/.config/boot-scripts/sshman.conf   (per-user)
+#
+# Values here override sshman.sh defaults.
+# All values are optional.
+
+# ── Target user ────────────────────────────────────────────────────────────────
+# The user whose ~/.ssh/authorized_keys will be managed.
+# Default: $SUDO_USER or $USER
+# TARGET_USER="root"
+
+# Home directory of target user (auto-detected if unset)
+# TARGET_HOME="/root"
+
+# Path to authorized_keys (auto-detected if unset)
+# AUTHORIZED_KEYS="/root/.ssh/authorized_keys"
+
+# ── Default pubkey injection ───────────────────────────────────────────────────
+# Set to "1" to automatically inject DEFAULT_PUBKEY on every run.
+# Default: 0 (disabled)
+# AUTO_INJECT_DEFAULT_PUBKEY="0"
+
+# The pubkey to inject. Format: "ssh-ed25519 AAAA... comment"
+# DEFAULT_PUBKEY="ssh-ed25519 AAAA..."
+
+# ── YubiKey (optional) ─────────────────────────────────────────────────────────
+# Only needed if you use YubiKey OTP authentication.
+# HARDENED_YUBIKEYS="root:cccccb..."
+# YUBI_CLIENT_ID="85975"
+# YUBI_SECRET_KEY="base64_secret"
