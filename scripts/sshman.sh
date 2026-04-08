@@ -598,7 +598,8 @@ show_main_actions() {
   echo -e "  ${C_CYAN}1)${C_RESET} apply login mode"
   echo -e "  ${C_CYAN}2)${C_RESET} manage authorized keys"
   echo -e "  ${C_CYAN}3)${C_RESET} manage YubiKey HOTP"
-  echo -e "  ${C_CYAN}4)${C_RESET} manual adjustments"
+  echo -e "  ${C_CYAN}4)${C_RESET} manage fail2ban"
+  echo -e "  ${C_CYAN}5)${C_RESET} manual adjustments"
   echo -e "  ${C_CYAN}0)${C_RESET} back"
 }
 
@@ -693,7 +694,6 @@ disable_fail2ban_guard() {
 
 apply_safe_otp_only_recovery() {
   enable_yubikey_ssh_mode
-  enable_fail2ban_guard
   _restart_ssh
 }
 
@@ -846,7 +846,6 @@ enable_yubikey() {
   write_yubikey_authfile
   write_managed_pam_block
   enable_yubikey_ssh_mode
-  enable_fail2ban_guard
   _restart_ssh
 }
 
@@ -963,7 +962,7 @@ quick_modes_menu() {
     refresh_screen
     show_status
     echo -e "  ${C_BOLD}Login modes${C_RESET}"
-    echo -e "  ${C_CYAN}1)${C_RESET} YubiKey OTP only ${C_DIM}root logs in with HOTP only + fail2ban${C_RESET}"
+    echo -e "  ${C_CYAN}1)${C_RESET} YubiKey OTP only ${C_DIM}root logs in with HOTP only${C_RESET}"
     echo -e "  ${C_CYAN}2)${C_RESET} Daily admin      ${C_DIM}root key-only, users may still use passwords${C_RESET}"
     echo -e "  ${C_CYAN}3)${C_RESET} Key only         ${C_DIM}passwords off, root denied${C_RESET}"
     echo -e "  ${C_CYAN}4)${C_RESET} Root password    ${C_DIM}most open, best for rescue access${C_RESET}"
@@ -982,6 +981,31 @@ quick_modes_menu() {
   done
 }
 
+manage_fail2ban_interactive() {
+  local choice
+
+  while true; do
+    refresh_screen
+    show_status
+    echo -e "  ${C_BOLD}Fail2ban${C_RESET}"
+    box_row "Scope" "SSH login jail only"
+    box_row "Jail file" "$FAIL2BAN_JAIL_FILE"
+    echo ""
+    echo -e "  ${C_CYAN}1)${C_RESET} install and enable fail2ban"
+    echo -e "  ${C_CYAN}2)${C_RESET} disable boot-scripts ssh jail"
+    echo -e "  ${C_CYAN}0)${C_RESET} back"
+    echo ""
+    read -rp "  select: " choice
+
+    case "$choice" in
+      1) enable_fail2ban_guard ;;
+      2) disable_fail2ban_guard ;;
+      0) return 0 ;;
+      *) warn "invalid choice" ;;
+    esac
+  done
+}
+
 advanced_menu() {
   local choice
 
@@ -992,8 +1016,6 @@ advanced_menu() {
     echo -e "  ${C_CYAN}1)${C_RESET} toggle password auth"
     echo -e "  ${C_CYAN}2)${C_RESET} toggle public-key auth"
     echo -e "  ${C_CYAN}3)${C_RESET} cycle root policy"
-    echo -e "  ${C_CYAN}4)${C_RESET} enable fail2ban for ssh"
-    echo -e "  ${C_CYAN}5)${C_RESET} disable fail2ban ssh jail"
     echo -e "  ${C_CYAN}0)${C_RESET} back"
     echo ""
     read -rp "  select: " choice
@@ -1002,8 +1024,6 @@ advanced_menu() {
       1) _toggle PasswordAuthentication "PasswordAuth" ;;
       2) _toggle PubkeyAuthentication "PubkeyAuth" ;;
       3) _cycle_root ;;
-      4) enable_fail2ban_guard ;;
-      5) disable_fail2ban_guard ;;
       0) return 0 ;;
       *) warn "invalid choice" ;;
     esac
@@ -1165,7 +1185,8 @@ main() {
           1) quick_modes_menu ;;
           2) manage_keys_interactive ;;
           3) manage_yubikey_interactive ;;
-          4) advanced_menu ;;
+          4) manage_fail2ban_interactive ;;
+          5) advanced_menu ;;
           0) exit 0 ;;
           *) warn "invalid choice" ;;
         esac

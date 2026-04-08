@@ -11,7 +11,7 @@ If you use it, assume you are responsible for reviewing what it changes before r
 This project is aimed at a small set of practical first-day tasks on Debian/Ubuntu-style systems:
 
 - guided first boot setup
-- SSH mode switching, YubiKey HOTP-only login, and SSH fail2ban guard
+- SSH mode switching, YubiKey HOTP-only login, and optional SSH fail2ban guard
 - hostname and `/etc/hosts` management
 - time repair
 - DNS / timezone / connectivity checks
