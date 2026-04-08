@@ -1,0 +1,16 @@
+[Unit]
+Description=Personal boot scripts
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Path to this repository (edit if you move it)
+Environment=BOOT_SCRIPTS_DIR=%SCRIPT_DIR%/scripts
+WorkingDirectory=%SCRIPT_DIR%
+ExecStart=%SCRIPT_DIR%/bin/boot.sh --all
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

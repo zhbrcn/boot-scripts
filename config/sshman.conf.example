@@ -1,0 +1,38 @@
+# sshman.conf.example - Configuration for sshman.sh
+#
+# Copy this file to:
+#   /etc/boot-scripts/sshman.conf
+#   ~/.config/boot-scripts/sshman.conf
+# Or keep real secrets locally in:
+#   ./config/sshman.conf.local
+#
+# All values are optional.
+
+# Target user whose ~/.ssh/authorized_keys will be managed.
+# TARGET_USER="root"
+
+# Target home directory. Auto-detected if unset.
+# TARGET_HOME="/root"
+
+# Path to authorized_keys. Defaults to $TARGET_HOME/.ssh/authorized_keys
+# AUTHORIZED_KEYS="/root/.ssh/authorized_keys"
+
+# Set to 1 to inject DEFAULT_PUBKEY on every run.
+# AUTO_INJECT_DEFAULT_PUBKEY="0"
+
+# Supports both regular SSH keys and YubiKey/FIDO keys.
+# DEFAULT_PUBKEY="ssh-ed25519 AAAA... comment"
+# DEFAULT_PUBKEY="sk-ssh-ed25519@openssh.com AAAA... comment"
+
+# YubiKey OTP hardening.
+# Requires pam_yubico on the target host.
+#
+# The authfile format is one mapping per line, for example:
+#   root:cccccbenueru:cccccbejiijg
+#   admin:vvvvvvxyzabc
+#
+# Use literal newlines if you want more than one mapping.
+# HARDENED_YUBIKEYS="root:cccccbenueru:cccccbejiijg"
+# YUBI_CLIENT_ID="85975"
+# YUBI_SECRET_KEY="set-this-in-config/sshman.conf.local"
+# YUBIKEY_AUTHFILE="/etc/ssh/authorized_yubikeys"
