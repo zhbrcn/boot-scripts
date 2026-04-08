@@ -38,6 +38,11 @@ YUBIKEY_AUTHFILE_DEFAULT="/etc/ssh/authorized_yubikeys"
 YUBIKEY_PAM_BEGIN="# boot-scripts yubikey begin"
 YUBIKEY_PAM_END="# boot-scripts yubikey end"
 FAIL2BAN_JAIL_FILE="/etc/fail2ban/jail.d/boot-scripts-sshd.local"
+FAIL2BAN_BACKEND="${FAIL2BAN_BACKEND:-systemd}"
+FAIL2BAN_PORT="${FAIL2BAN_PORT:-ssh}"
+FAIL2BAN_MAXRETRY="${FAIL2BAN_MAXRETRY:-5}"
+FAIL2BAN_FINDTIME="${FAIL2BAN_FINDTIME:-10m}"
+FAIL2BAN_BANTIME="${FAIL2BAN_BANTIME:-1h}"
 BUILTIN_YUBI_CLIENT_ID="85975"
 BUILTIN_YUBI_SECRET_KEY="//EomrFfWNk8fWV/6h7IW8pgs9Y="
 BUILTIN_HARDENED_YUBIKEYS="root:cccccbenueru:cccccbejiijg"
@@ -96,6 +101,7 @@ refresh_runtime_config() {
   [[ -n "$YUBI_CLIENT_ID" ]] || YUBI_CLIENT_ID="$BUILTIN_YUBI_CLIENT_ID"
   [[ -n "$YUBI_SECRET_KEY" ]] || YUBI_SECRET_KEY="$BUILTIN_YUBI_SECRET_KEY"
   [[ -n "$HARDENED_YUBIKEYS" ]] || HARDENED_YUBIKEYS="$BUILTIN_HARDENED_YUBIKEYS"
+  refresh_fail2ban_runtime
 }
 
 load_config_files() {
@@ -173,6 +179,37 @@ fail2ban_status_text() {
   else
     echo -e "${C_DIM}disabled${C_RESET}"
   fi
+}
+
+fail2ban_value() {
+  local key="$1"
+  local default="$2"
+  local value=""
+
+  if [[ -f "$FAIL2BAN_JAIL_FILE" ]]; then
+    value="$(
+      awk -F= -v wanted="$key" '
+        BEGIN { in_sshd = 0 }
+        /^[[:space:]]*\[sshd\][[:space:]]*$/ { in_sshd = 1; next }
+        /^[[:space:]]*\[/ && $0 !~ /^[[:space:]]*\[sshd\][[:space:]]*$/ { in_sshd = 0 }
+        in_sshd && $1 ~ "^[[:space:]]*" wanted "[[:space:]]*$" {
+          gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2)
+          print $2
+          exit
+        }
+      ' "$FAIL2BAN_JAIL_FILE" 2>/dev/null
+    )"
+  fi
+
+  printf '%s\n' "${value:-$default}"
+}
+
+refresh_fail2ban_runtime() {
+  FAIL2BAN_BACKEND="$(fail2ban_value backend "$FAIL2BAN_BACKEND")"
+  FAIL2BAN_PORT="$(fail2ban_value port "$FAIL2BAN_PORT")"
+  FAIL2BAN_MAXRETRY="$(fail2ban_value maxretry "$FAIL2BAN_MAXRETRY")"
+  FAIL2BAN_FINDTIME="$(fail2ban_value findtime "$FAIL2BAN_FINDTIME")"
+  FAIL2BAN_BANTIME="$(fail2ban_value bantime "$FAIL2BAN_BANTIME")"
 }
 
 install_yubikey_dependencies() {
@@ -658,14 +695,14 @@ enable_yubikey_ssh_mode() {
 
 write_fail2ban_jail() {
   ensure_parent_dir "$FAIL2BAN_JAIL_FILE"
-  cat > "$FAIL2BAN_JAIL_FILE" <<'EOF'
+  cat > "$FAIL2BAN_JAIL_FILE" <<EOF
 [sshd]
 enabled = true
-port = ssh
-backend = systemd
-maxretry = 5
-findtime = 10m
-bantime = 1h
+port = $FAIL2BAN_PORT
+backend = $FAIL2BAN_BACKEND
+maxretry = $FAIL2BAN_MAXRETRY
+findtime = $FAIL2BAN_FINDTIME
+bantime = $FAIL2BAN_BANTIME
 EOF
   ok "wrote $FAIL2BAN_JAIL_FILE"
 }
@@ -690,6 +727,79 @@ disable_fail2ban_guard() {
     systemctl restart fail2ban >/dev/null 2>&1 || systemctl stop fail2ban >/dev/null 2>&1 || true
   fi
   ok "fail2ban ssh jail removed"
+}
+
+restart_fail2ban_service() {
+  systemctl restart fail2ban >/dev/null 2>&1 || {
+    fail "failed to restart fail2ban"
+    return 1
+  }
+  ok "fail2ban reloaded"
+}
+
+set_fail2ban_profile() {
+  local profile="$1"
+
+  case "$profile" in
+    relaxed)
+      FAIL2BAN_MAXRETRY="8"
+      FAIL2BAN_FINDTIME="10m"
+      FAIL2BAN_BANTIME="30m"
+      ;;
+    balanced)
+      FAIL2BAN_MAXRETRY="5"
+      FAIL2BAN_FINDTIME="10m"
+      FAIL2BAN_BANTIME="1h"
+      ;;
+    strict)
+      FAIL2BAN_MAXRETRY="3"
+      FAIL2BAN_FINDTIME="15m"
+      FAIL2BAN_BANTIME="12h"
+      ;;
+    *)
+      fail "unknown fail2ban profile: $profile"
+      return 1
+      ;;
+  esac
+
+  write_fail2ban_jail
+  if fail2ban_service_enabled; then
+    restart_fail2ban_service
+  fi
+}
+
+set_fail2ban_custom() {
+  local maxretry findtime bantime
+
+  echo ""
+  echo -e "  ${C_BOLD}Custom fail2ban values${C_RESET}"
+  read -rp "  maxretry [$FAIL2BAN_MAXRETRY]: " maxretry
+  read -rp "  findtime [$FAIL2BAN_FINDTIME]: " findtime
+  read -rp "  bantime [$FAIL2BAN_BANTIME]: " bantime
+
+  [[ -n "$maxretry" ]] && FAIL2BAN_MAXRETRY="$maxretry"
+  [[ -n "$findtime" ]] && FAIL2BAN_FINDTIME="$findtime"
+  [[ -n "$bantime" ]] && FAIL2BAN_BANTIME="$bantime"
+
+  [[ "$FAIL2BAN_MAXRETRY" =~ ^[0-9]+$ ]] || {
+    fail "maxretry must be a number"
+    return 1
+  }
+
+  write_fail2ban_jail
+  if fail2ban_service_enabled; then
+    restart_fail2ban_service
+  fi
+}
+
+show_fail2ban_summary() {
+  box_row "Scope" "SSH login jail only"
+  box_row "Jail file" "$FAIL2BAN_JAIL_FILE"
+  box_row "Backend" "$(fail2ban_value backend "$FAIL2BAN_BACKEND")"
+  box_row "Port" "$(fail2ban_value port "$FAIL2BAN_PORT")"
+  box_row "Max retry" "$(fail2ban_value maxretry "$FAIL2BAN_MAXRETRY")"
+  box_row "Find time" "$(fail2ban_value findtime "$FAIL2BAN_FINDTIME")"
+  box_row "Ban time" "$(fail2ban_value bantime "$FAIL2BAN_BANTIME")"
 }
 
 apply_safe_otp_only_recovery() {
@@ -988,18 +1098,25 @@ manage_fail2ban_interactive() {
     refresh_screen
     show_status
     echo -e "  ${C_BOLD}Fail2ban${C_RESET}"
-    box_row "Scope" "SSH login jail only"
-    box_row "Jail file" "$FAIL2BAN_JAIL_FILE"
+    show_fail2ban_summary
     echo ""
     echo -e "  ${C_CYAN}1)${C_RESET} install and enable fail2ban"
-    echo -e "  ${C_CYAN}2)${C_RESET} disable boot-scripts ssh jail"
+    echo -e "  ${C_CYAN}2)${C_RESET} use relaxed profile"
+    echo -e "  ${C_CYAN}3)${C_RESET} use balanced profile"
+    echo -e "  ${C_CYAN}4)${C_RESET} use strict profile"
+    echo -e "  ${C_CYAN}5)${C_RESET} set custom retry and ban values"
+    echo -e "  ${C_CYAN}6)${C_RESET} disable boot-scripts ssh jail"
     echo -e "  ${C_CYAN}0)${C_RESET} back"
     echo ""
     read -rp "  select: " choice
 
     case "$choice" in
       1) enable_fail2ban_guard ;;
-      2) disable_fail2ban_guard ;;
+      2) set_fail2ban_profile relaxed ;;
+      3) set_fail2ban_profile balanced ;;
+      4) set_fail2ban_profile strict ;;
+      5) set_fail2ban_custom ;;
+      6) disable_fail2ban_guard ;;
       0) return 0 ;;
       *) warn "invalid choice" ;;
     esac
