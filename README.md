@@ -11,7 +11,7 @@ If you use it, assume you are responsible for reviewing what it changes before r
 This project is aimed at a small set of practical first-day tasks on Debian/Ubuntu-style systems:
 
 - guided first boot setup
-- SSH mode switching and YubiKey HOTP login
+- SSH mode switching, YubiKey HOTP-only login, and SSH fail2ban guard
 - hostname and `/etc/hosts` management
 - time repair
 - DNS / timezone / connectivity checks
@@ -67,6 +67,7 @@ Or, if installed as a normal user:
 - Most useful actions require `root`
 - SSH and PAM changes can lock you out if your environment differs from mine
 - YubiKey behavior in this repo is intentionally opinionated and tailored to my own usage
+- The built-in YubiKey mode is meant to enforce HOTP-only SSH for my own servers
 - The package selections are convenience defaults, not a universal standard
 
 ## Layout

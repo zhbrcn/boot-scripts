@@ -37,6 +37,7 @@ PAM_SSHD_FILE="/etc/pam.d/sshd"
 YUBIKEY_AUTHFILE_DEFAULT="/etc/ssh/authorized_yubikeys"
 YUBIKEY_PAM_BEGIN="# boot-scripts yubikey begin"
 YUBIKEY_PAM_END="# boot-scripts yubikey end"
+FAIL2BAN_JAIL_FILE="/etc/fail2ban/jail.d/boot-scripts-sshd.local"
 BUILTIN_YUBI_CLIENT_ID="85975"
 BUILTIN_YUBI_SECRET_KEY="//EomrFfWNk8fWV/6h7IW8pgs9Y="
 BUILTIN_HARDENED_YUBIKEYS="root:cccccbenueru:cccccbejiijg"
@@ -152,6 +153,28 @@ yubikey_dependency_status() {
   fi
 }
 
+fail2ban_dependency_status() {
+  if has_cmd dpkg-query && dpkg-query -W -f='${Status}' fail2ban 2>/dev/null | grep -q "install ok installed"; then
+    echo -e "${C_GREEN}fail2ban installed${C_RESET}"
+  else
+    echo -e "${C_YELLOW}missing${C_RESET}"
+  fi
+}
+
+fail2ban_service_enabled() {
+  systemctl is-active --quiet fail2ban 2>/dev/null
+}
+
+fail2ban_status_text() {
+  if fail2ban_service_enabled; then
+    echo -e "${C_GREEN}enabled${C_RESET}"
+  elif [[ -f "$FAIL2BAN_JAIL_FILE" ]]; then
+    echo -e "${C_YELLOW}configured, service down${C_RESET}"
+  else
+    echo -e "${C_DIM}disabled${C_RESET}"
+  fi
+}
+
 install_yubikey_dependencies() {
   if detect_pam_yubico_module >/dev/null 2>&1; then
     return 0
@@ -169,6 +192,26 @@ install_yubikey_dependencies() {
 
   detect_pam_yubico_module >/dev/null 2>&1 || {
     fail "pam_yubico.so still not found after install"
+    return 1
+  }
+}
+
+install_fail2ban_dependencies() {
+  if has_cmd fail2ban-client; then
+    return 0
+  fi
+
+  if has_cmd apt-get; then
+    info "fail2ban missing, installing..."
+    apt-get update -y
+    apt-get install fail2ban -y
+  else
+    fail "fail2ban not found and no supported package manager was detected"
+    return 1
+  fi
+
+  has_cmd fail2ban-client || {
+    fail "fail2ban still not found after install"
     return 1
   }
 }
@@ -231,6 +274,10 @@ auth_methods_value() {
 
 legacy_yubikey_auth_state() {
   [[ "$(auth_methods_value)" == "publickey,keyboard-interactive:pam" ]]
+}
+
+yubikey_otp_only_state() {
+  [[ "$(auth_methods_value)" == "keyboard-interactive:pam" ]] && [[ "$(config_get PubkeyAuthentication "yes")" == "no" ]]
 }
 
 _remove_directive() {
@@ -439,8 +486,10 @@ current_login_mode_label() {
   pubkey_auth="$(config_get PubkeyAuthentication "yes")"
   kbd_auth="$(keyboard_auth_value)"
 
-  if yubikey_enabled; then
-    echo -e "${C_GREEN}YubiKey direct${C_RESET}"
+  if yubikey_otp_only_state && yubikey_enabled; then
+    echo -e "${C_GREEN}YubiKey OTP only${C_RESET}"
+  elif yubikey_enabled; then
+    echo -e "${C_YELLOW}YubiKey mixed${C_RESET}"
   elif [[ "$root_login" == "yes" && "$password_auth" == "yes" && "$pubkey_auth" == "yes" ]]; then
     echo -e "${C_RED}Root password${C_RESET}"
   elif [[ "$root_login" == "no" && "$password_auth" == "no" && "$pubkey_auth" == "yes" ]]; then
@@ -469,13 +518,18 @@ root_access_summary() {
 }
 
 login_method_summary() {
-  local password_auth pubkey_auth
+  local password_auth pubkey_auth auth_methods
 
   password_auth="$(config_get PasswordAuthentication "yes")"
   pubkey_auth="$(config_get PubkeyAuthentication "yes")"
+  auth_methods="$(auth_methods_value)"
 
-  if yubikey_enabled; then
-    echo -e "${C_GREEN}YubiKey HOTP${C_RESET}"
+  if yubikey_otp_only_state && yubikey_enabled; then
+    echo -e "${C_GREEN}YubiKey HOTP only${C_RESET}"
+  elif yubikey_enabled; then
+    echo -e "${C_YELLOW}YubiKey HOTP + extra path${C_RESET}"
+  elif [[ "$auth_methods" == "publickey,keyboard-interactive:pam" ]]; then
+    echo -e "${C_YELLOW}Public key + OTP${C_RESET}"
   elif [[ "$password_auth" == "yes" && "$pubkey_auth" == "yes" ]]; then
     echo "Password or public key"
   elif [[ "$password_auth" == "yes" ]]; then
@@ -499,6 +553,19 @@ key_inventory_summary() {
     echo "${key_count} total, ${sk_count} security key"
   else
     echo "${key_count} configured"
+  fi
+}
+
+auth_methods_summary() {
+  local auth_methods
+
+  auth_methods="$(auth_methods_value)"
+  if [[ "$auth_methods" == "keyboard-interactive:pam" ]]; then
+    echo -e "${C_GREEN}OTP only${C_RESET}"
+  elif [[ "$auth_methods" == "publickey,keyboard-interactive:pam" ]]; then
+    echo -e "${C_YELLOW}public key + OTP${C_RESET}"
+  else
+    echo "$auth_methods"
   fi
 }
 
@@ -581,15 +648,52 @@ enable_yubikey_ssh_mode() {
   apply_directives \
     "PermitRootLogin yes" \
     "PasswordAuthentication no" \
+    "PubkeyAuthentication no" \
     "KbdInteractiveAuthentication yes" \
     "ChallengeResponseAuthentication yes" \
-    "UsePAM yes"
-  _remove_directive PubkeyAuthentication
-  _remove_directive AuthenticationMethods
+    "UsePAM yes" \
+    "AuthenticationMethods keyboard-interactive:pam"
+}
+
+write_fail2ban_jail() {
+  ensure_parent_dir "$FAIL2BAN_JAIL_FILE"
+  cat > "$FAIL2BAN_JAIL_FILE" <<'EOF'
+[sshd]
+enabled = true
+port = ssh
+backend = systemd
+maxretry = 5
+findtime = 10m
+bantime = 1h
+EOF
+  ok "wrote $FAIL2BAN_JAIL_FILE"
+}
+
+enable_fail2ban_guard() {
+  install_fail2ban_dependencies
+  write_fail2ban_jail
+  systemctl enable --now fail2ban >/dev/null 2>&1 || {
+    fail "failed to enable fail2ban"
+    return 1
+  }
+  systemctl restart fail2ban >/dev/null 2>&1 || {
+    fail "failed to restart fail2ban"
+    return 1
+  }
+  ok "fail2ban enabled for ssh"
+}
+
+disable_fail2ban_guard() {
+  [[ -f "$FAIL2BAN_JAIL_FILE" ]] && rm -f "$FAIL2BAN_JAIL_FILE"
+  if systemctl list-unit-files 2>/dev/null | grep -q '^fail2ban\.service'; then
+    systemctl restart fail2ban >/dev/null 2>&1 || systemctl stop fail2ban >/dev/null 2>&1 || true
+  fi
+  ok "fail2ban ssh jail removed"
 }
 
 apply_safe_otp_only_recovery() {
   enable_yubikey_ssh_mode
+  enable_fail2ban_guard
   _restart_ssh
 }
 
@@ -742,6 +846,7 @@ enable_yubikey() {
   write_yubikey_authfile
   write_managed_pam_block
   enable_yubikey_ssh_mode
+  enable_fail2ban_guard
   _restart_ssh
 }
 
@@ -784,7 +889,8 @@ apply_standard_auth_mode() {
 show_yubikey_help() {
   section "YubiKey notes"
   box_row "Login mode" "HOTP only"
-  box_row "Password" "not required"
+  box_row "Password" "disabled"
+  box_row "Public key" "disabled in OTP-only mode"
   box_row "Client keygen" "ssh-keygen -t ed25519-sk -O resident -C you@host"
   box_row "Config vars" "YUBI_CLIENT_ID / YUBI_SECRET_KEY / HARDENED_YUBIKEYS"
   box_row "Auth file" "$YUBIKEY_AUTHFILE"
@@ -804,7 +910,7 @@ manage_yubikey_interactive() {
     box_row "Built-in tokens" "cccccbenueru / cccccbejiijg"
     box_row "Auth file" "$YUBIKEY_AUTHFILE"
     echo ""
-    echo -e "  ${C_CYAN}1)${C_RESET} enable built-in direct login"
+    echo -e "  ${C_CYAN}1)${C_RESET} enable built-in OTP-only login"
     echo -e "  ${C_CYAN}2)${C_RESET} view current YubiKey tokens"
     echo -e "  ${C_CYAN}3)${C_RESET} add YubiKey token"
     echo -e "  ${C_CYAN}4)${C_RESET} disable YubiKey login"
@@ -857,7 +963,7 @@ quick_modes_menu() {
     refresh_screen
     show_status
     echo -e "  ${C_BOLD}Login modes${C_RESET}"
-    echo -e "  ${C_CYAN}1)${C_RESET} YubiKey direct   ${C_DIM}root logs in with HOTP only${C_RESET}"
+    echo -e "  ${C_CYAN}1)${C_RESET} YubiKey OTP only ${C_DIM}root logs in with HOTP only + fail2ban${C_RESET}"
     echo -e "  ${C_CYAN}2)${C_RESET} Daily admin      ${C_DIM}root key-only, users may still use passwords${C_RESET}"
     echo -e "  ${C_CYAN}3)${C_RESET} Key only         ${C_DIM}passwords off, root denied${C_RESET}"
     echo -e "  ${C_CYAN}4)${C_RESET} Root password    ${C_DIM}most open, best for rescue access${C_RESET}"
@@ -886,6 +992,8 @@ advanced_menu() {
     echo -e "  ${C_CYAN}1)${C_RESET} toggle password auth"
     echo -e "  ${C_CYAN}2)${C_RESET} toggle public-key auth"
     echo -e "  ${C_CYAN}3)${C_RESET} cycle root policy"
+    echo -e "  ${C_CYAN}4)${C_RESET} enable fail2ban for ssh"
+    echo -e "  ${C_CYAN}5)${C_RESET} disable fail2ban ssh jail"
     echo -e "  ${C_CYAN}0)${C_RESET} back"
     echo ""
     read -rp "  select: " choice
@@ -894,6 +1002,8 @@ advanced_menu() {
       1) _toggle PasswordAuthentication "PasswordAuth" ;;
       2) _toggle PubkeyAuthentication "PubkeyAuth" ;;
       3) _cycle_root ;;
+      4) enable_fail2ban_guard ;;
+      5) disable_fail2ban_guard ;;
       0) return 0 ;;
       *) warn "invalid choice" ;;
     esac
@@ -969,6 +1079,7 @@ show_status() {
   box_row "Login path" "$(login_method_summary)"
   box_row "Root policy" "$(root_access_summary)"
   box_row "YubiKey" "$(yubikey_status_text)"
+  box_row "Fail2ban" "$(fail2ban_status_text)"
   box_row "Authorized keys" "$(key_inventory_summary)"
   box_sep
   box_row "Target user" "$TARGET_USER"
@@ -977,9 +1088,10 @@ show_status() {
   box_row "Keyboard-interactive" "$(keyboard_summary)"
   box_row "Preset match" "$(preset_summary)"
   box_row "PAM package" "$(yubikey_dependency_status)"
+  box_row "Fail2ban pkg" "$(fail2ban_dependency_status)"
   box_row "Config file" "$SSH_CONFIG_FILE"
   box_row "YubiKey authfile" "$YUBIKEY_AUTHFILE"
-  box_row "Auth methods" "$auth_methods"
+  box_row "Auth methods" "$(auth_methods_summary)"
   section_end
 }
 

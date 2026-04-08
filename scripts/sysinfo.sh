@@ -22,19 +22,22 @@ done
 PAM_SSHD_FILE="/etc/pam.d/sshd"
 YUBIKEY_AUTHFILE="/etc/ssh/authorized_yubikeys"
 HOSTS_FILE="/etc/hosts"
+FAIL2BAN_JAIL_FILE="/etc/fail2ban/jail.d/boot-scripts-sshd.local"
+SSHD_DUMP=""
+
+load_sshd_dump() {
+  SSHD_DUMP="$(sshd -T 2>/dev/null || true)"
+}
 
 sshd_effective() {
   local key="$1"
-  local sshd_dump
   local line
-
-  sshd_dump="$(sshd -T 2>/dev/null || true)"
 
   while IFS= read -r line; do
     [[ "$line" == "$key "* ]] || continue
-    printf '%s\n' "${line#* }"
+    printf '%s\n' "${line#* }" | head -n 1
     return 0
-  done <<< "$sshd_dump"
+  done <<< "$SSHD_DUMP"
 
   return 1
 }
@@ -90,7 +93,11 @@ summary_status() {
 }
 
 summary_ssh_posture() {
-  if yubikey_pam_line >/dev/null 2>&1 && [[ -n "$(yubikey_pam_line)" ]]; then
+  if [[ "$(sshd_effective_or_unknown authenticationmethods)" == "keyboard-interactive:pam" ]] \
+    && [[ "$(sshd_effective_or_unknown pubkeyauthentication)" == "no" ]] \
+    && [[ "$(sshd_effective_or_unknown passwordauthentication)" == "no" ]]; then
+    echo "YubiKey OTP only"
+  elif yubikey_pam_line >/dev/null 2>&1 && [[ -n "$(yubikey_pam_line)" ]]; then
     echo "YubiKey protected"
   elif [[ "$(sshd_effective_or_unknown passwordauthentication)" == "no" ]]; then
     echo "Password disabled"
@@ -195,15 +202,16 @@ show_access_block() {
     box_row "SSH service" "${C_YELLOW}${svc} stopped${C_RESET}"
   fi
 
-  box_row "Root login" "$root_login"
-  box_row "Password auth" "$password_auth"
-  box_row "Public-key auth" "$pubkey_auth"
-  box_row "Keyboard-int" "$keyboard_auth"
+  box_row "Root login" "$(color_bool "$root_login")"
+  box_row "Password auth" "$(color_bool "$password_auth")"
+  box_row "Public-key auth" "$(color_bool "$pubkey_auth")"
+  box_row "Keyboard-int" "$(color_bool "$keyboard_auth")"
+  box_row "Auth methods" "$(sshd_effective_or_unknown authenticationmethods)"
 }
 
 show_health_block() {
   local ntp_sync="unknown"
-  local hosts_line pam_line dns_state mapping_count
+  local hosts_line pam_line dns_state mapping_count fail2ban_state
 
   if has_cmd timedatectl; then
     ntp_sync="$(timedatectl show -p NTPSynchronized --value 2>/dev/null || echo no)"
@@ -236,9 +244,19 @@ show_health_block() {
     mapping_count="$(grep -cv '^[[:space:]]*$\|^[[:space:]]*#' "$YUBIKEY_AUTHFILE" 2>/dev/null || echo 0)"
     box_row "YubiKey maps" "${mapping_count} entry(s)"
   fi
+
+  if systemctl is-active --quiet fail2ban 2>/dev/null; then
+    fail2ban_state="${C_GREEN}running${C_RESET}"
+  elif [[ -f "$FAIL2BAN_JAIL_FILE" ]]; then
+    fail2ban_state="${C_YELLOW}configured${C_RESET}"
+  else
+    fail2ban_state="${C_DIM}not configured${C_RESET}"
+  fi
+  box_row "Fail2ban" "$fail2ban_state"
 }
 
 show_sysinfo() {
+  load_sshd_dump
   section "system info"
   show_summary_block
   show_system_block
