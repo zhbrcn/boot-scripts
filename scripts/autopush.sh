@@ -54,7 +54,7 @@ disable() {
     return 0
   fi
 
-  git config --global --unset alias.autopush
+  git config --global --unset-all alias.autopush
   echo "  autopush disabled"
 }
 
