@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # autopush.sh - Configure git autopush alias
 
-set -euo pipefail
+set -uo pipefail
 
 _src="${BASH_SOURCE[0]}"
 _bin_dir="$(cd "$(dirname "$_src")" && pwd)"
