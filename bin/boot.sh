@@ -255,7 +255,25 @@ interactive_menu() {
 
   has_script sshman && items+=("ssh manager|run_script \"\$SCRIPTS_DIR/sshman.sh\" --interactive")
 
-  has_script autopush && items+=("autopush|run_script \"\$SCRIPTS_DIR/autopush.sh\" --status")
+  if has_script autopush; then
+    local autopush_status="off"
+    if autopush_status="$(bash "$SCRIPTS_DIR/autopush.sh" --status 2>/dev/null)"; then
+      case "$autopush_status" in
+        enabled)
+          autopush_status="on"
+          ;;
+        disabled)
+          autopush_status="off"
+          ;;
+        *)
+          autopush_status="unknown"
+          ;;
+      esac
+    else
+      autopush_status="unknown"
+    fi
+    items+=("autopush [$autopush_status]|run_script \"\$SCRIPTS_DIR/autopush.sh\" --toggle")
+  fi
 
   items+=(
     "- Repair -|:"
