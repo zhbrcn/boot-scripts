@@ -23,7 +23,7 @@ EOF
 }
 
 is_enabled() {
-  git config --global alias.autopush >/dev/null 2>&1
+  git config --global alias.autopush >/dev/null 2>&1 && return 0 || return 1
 }
 
 enable() {
@@ -55,7 +55,7 @@ disable() {
 status() {
   if is_enabled; then
     echo "  autopush: enabled"
-    echo "  Alias: $(git config --global alias.autopush)"
+    echo "  Alias: $(git config --global --get alias.autopush 2>/dev/null || echo 'N/A')"
   else
     echo "  autopush: disabled"
   fi

@@ -4,7 +4,9 @@
       "Bash(git config *)",
       "Bash(bash -n scripts/sshman.sh)",
       "Bash(git autopush *)",
-      "Bash(bash scripts/autopush.sh)"
+      "Bash(bash scripts/autopush.sh)",
+      "Bash(bash scripts/autopush.sh --status)",
+      "Bash(bash scripts/autopush.sh --enable)"
     ]
   }
 }
