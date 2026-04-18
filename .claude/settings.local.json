@@ -6,7 +6,18 @@
       "Bash(git autopush *)",
       "Bash(bash scripts/autopush.sh)",
       "Bash(bash scripts/autopush.sh --status)",
-      "Bash(bash scripts/autopush.sh --enable)"
+      "Bash(bash scripts/autopush.sh --enable)",
+      "Bash(echo \"exit code: $?\")",
+      "Bash(curl -fsSL https://raw.githubusercontent.com/zhbrcn/boot-scripts/main/scripts/autopush.sh)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(bash -n \"/mnt/c/Users/Brz/Desktop/boot-scripts/install.sh\")",
+      "Bash(bash -n \"/mnt/c/Users/Brz/Desktop/boot-scripts/scripts/autopush.sh\")",
+      "Bash(bash -n \"/c/Users/Brz/Desktop/boot-scripts/install.sh\")",
+      "Bash(bash -n \"/c/Users/Brz/Desktop/boot-scripts/scripts/autopush.sh\")",
+      "Bash(\"/c/Users/Brz/Desktop/boot-scripts/scripts/autopush.sh\" --enable)"
     ]
   }
 }

@@ -19,6 +19,11 @@ Options:
   --disable  Remove autopush alias
   --status   Show current autopush configuration
 
+Behavior:
+  - stages all changes before commit
+  - exits cleanly when there is nothing to commit
+  - sets upstream automatically on first push
+
 EOF
 }
 
@@ -34,7 +39,7 @@ enable() {
     return 0
   fi
 
-  git config --global alias.autopush '!f() { git add -A; if [ -z "$1" ]; then git commit -m "Auto Push on $(date +"%Y-%m-%d %H:%M:%S")"; else git commit -m "$1"; fi; git push; }; f'
+  git config --global alias.autopush '!f() { git add -A; if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi; if [ -z "$1" ]; then git commit -m "Auto Push on $(date +"%Y-%m-%d %H:%M:%S")"; else git commit -m "$1"; fi; branch=$(git branch --show-current); if [ -z "$branch" ]; then echo "error: could not determine current branch" >&2; exit 1; fi; if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then git push; else git push -u origin "$branch"; fi; }; f'
   echo "  autopush enabled"
   echo ""
   echo "  Usage:"

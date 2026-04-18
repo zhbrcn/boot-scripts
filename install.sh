@@ -95,6 +95,9 @@ main() {
   printf '%s\n' "$REF" > "${INSTALL_DIR}/.boot-scripts-ref"
   printf '%s\n' "$scripts_dir" > "${INSTALL_DIR}/bin/.boot-scripts-dir"
 
+  echo "enabling autopush..."
+  "$scripts_dir/autopush.sh" --enable
+
   echo "starting menu..."
   if attach_tty; then
     BOOT_SCRIPTS_DIR="$scripts_dir" "$boot_sh" --menu </dev/tty >/dev/tty 2>/dev/tty
