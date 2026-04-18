@@ -19,7 +19,10 @@
       "Bash(bash -n \"/c/Users/Brz/Desktop/boot-scripts/scripts/autopush.sh\")",
       "Bash(\"/c/Users/Brz/Desktop/boot-scripts/scripts/autopush.sh\" --enable)",
       "Bash(git *)",
-      "Bash(bash -n \"/c/Users/Brz/Desktop/boot-scripts/bin/boot.sh\")"
+      "Bash(bash -n \"/c/Users/Brz/Desktop/boot-scripts/bin/boot.sh\")",
+      "Bash(bash -n C:/Users/Brz/Desktop/boot-scripts/bin/boot.sh)",
+      "Bash(bash -n C:/Users/Brz/Desktop/boot-scripts/lib/ui.sh)",
+      "Bash(bash *)"
     ]
   }
 }

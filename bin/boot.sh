@@ -276,7 +276,14 @@ interactive_menu() {
 }
 
 toggle_autopush() {
-  run_script "$SCRIPTS_DIR/autopush.sh" --toggle || return $?
+  local ret=0
+  run_script "$SCRIPTS_DIR/autopush.sh" --toggle || ret=$?
+  echo ""
+  printf '  current state: '
+  bash "$SCRIPTS_DIR/autopush.sh" --status || true
+  echo ""
+  read -rp "  press enter to continue..." _ || true
+  return "$ret"
 }
 
 run_all_scripts() {

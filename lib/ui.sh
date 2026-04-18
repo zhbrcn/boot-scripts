@@ -110,6 +110,9 @@ read_choice() {
   local prompt="${1:-  select [q]: }"
   local value
   read -rp "$prompt" value
+  value="${value%$'\r'}"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
   printf '%s' "$value"
 }
 
