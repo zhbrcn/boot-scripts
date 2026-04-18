@@ -31,6 +31,12 @@ is_enabled() {
   (git config --global alias.autopush >/dev/null 2>&1) && return 0 || return 1
 }
 
+alias_value() {
+  cat <<'EOF'
+!f() { git add -A; if git diff --cached --quiet; then echo "nothing to commit"; return 0; fi; if [ -z "$1" ]; then git commit -m "Auto Push on $(date +'%Y-%m-%d %H:%M:%S')"; else git commit -m "$1"; fi; branch=$(git branch --show-current); if [ -z "$branch" ]; then echo "error: could not determine current branch" >&2; return 1; fi; if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then git push; else git push -u origin "$branch"; fi; }; f
+EOF
+}
+
 enable() {
   if is_enabled; then
     echo "  autopush is already enabled"
@@ -39,7 +45,7 @@ enable() {
     return 0
   fi
 
-  git config --global alias.autopush '!f() { git add -A; if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi; if [ -z "$1" ]; then git commit -m "Auto Push on $(date +"%Y-%m-%d %H:%M:%S")"; else git commit -m "$1"; fi; branch=$(git branch --show-current); if [ -z "$branch" ]; then echo "error: could not determine current branch" >&2; exit 1; fi; if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then git push; else git push -u origin "$branch"; fi; }; f'
+  git config --global alias.autopush "$(alias_value)"
   echo "  autopush enabled"
   echo ""
   echo "  Usage:"
