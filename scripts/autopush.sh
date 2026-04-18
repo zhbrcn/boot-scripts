@@ -23,14 +23,14 @@ EOF
 }
 
 is_enabled() {
-  git config --global alias.autopush >/dev/null 2>&1 && return 0 || return 1
+  (git config --global alias.autopush >/dev/null 2>&1) && return 0 || return 1
 }
 
 enable() {
   if is_enabled; then
     echo "  autopush is already enabled"
     echo "  Current alias:"
-    git config --global alias.autopush
+    (git config --global alias.autopush 2>/dev/null) || true
     return 0
   fi
 
