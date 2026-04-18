@@ -243,54 +243,40 @@ has_script() {
 }
 
 interactive_menu() {
-  while true; do
-    load_ui
-    list_scripts >/dev/null
+  load_ui
+  list_scripts >/dev/null
 
-    local items=(
-      "- System -|:"
-      "first boot|run_script \"\$SCRIPTS_DIR/first-boot.sh\""
-      "system info|run_script \"\$SCRIPTS_DIR/sysinfo.sh\" --hold"
-      "- Access -|:"
-    )
+  local items=(
+    "- System -|:"
+    "first boot|run_script \"\$SCRIPTS_DIR/first-boot.sh\""
+    "system info|run_script \"\$SCRIPTS_DIR/sysinfo.sh\" --hold"
+    "- Access -|:"
+  )
 
-    has_script sshman && items+=("ssh manager|run_script \"\$SCRIPTS_DIR/sshman.sh\" --interactive")
+  has_script sshman && items+=("ssh manager|run_script \"\$SCRIPTS_DIR/sshman.sh\" --interactive")
 
-    if has_script autopush; then
-      local autopush_status="off"
-      if autopush_status="$(bash "$SCRIPTS_DIR/autopush.sh" --status 2>/dev/null)"; then
-        case "$autopush_status" in
-          enabled)
-            autopush_status="on"
-            ;;
-          disabled)
-            autopush_status="off"
-            ;;
-          *)
-            autopush_status="unknown"
-            ;;
-        esac
-      else
-        autopush_status="unknown"
-      fi
-      items+=("autopush [$autopush_status]|run_script \"\$SCRIPTS_DIR/autopush.sh\" --toggle")
-    fi
+  if has_script autopush; then
+    items+=("autopush|toggle_autopush")
+  fi
 
-    items+=(
-      "- Repair -|:"
-    )
-    has_script network && items+=("network|run_script \"\$SCRIPTS_DIR/network.sh\"")
-    has_script fix-time && items+=("time sync|run_script \"\$SCRIPTS_DIR/fix-time.sh\"")
-    has_script hostname && items+=("hostname|run_script \"\$SCRIPTS_DIR/hostname.sh\"")
-    has_script base-packages && items+=("base packages|run_script \"\$SCRIPTS_DIR/base-packages.sh\"")
+  items+=(
+    "- Repair -|:"
+  )
+  has_script network && items+=("network|run_script \"\$SCRIPTS_DIR/network.sh\"")
+  has_script fix-time && items+=("time sync|run_script \"\$SCRIPTS_DIR/fix-time.sh\"")
+  has_script hostname && items+=("hostname|run_script \"\$SCRIPTS_DIR/hostname.sh\"")
+  has_script base-packages && items+=("base packages|run_script \"\$SCRIPTS_DIR/base-packages.sh\"")
 
-    items+=(
-      "- Utility -|:"
-      "refresh scripts|bootstrap_scripts \"\$SCRIPTS_DIR\""
-    )
+  items+=(
+    "- Utility -|:"
+    "refresh scripts|bootstrap_scripts \"\$SCRIPTS_DIR\""
+  )
 
-    menu "boot-scripts" "${items[@]}" || return 0
-  done
+  menu "boot-scripts" "${items[@]}"
+}
+
+toggle_autopush() {
+  run_script "$SCRIPTS_DIR/autopush.sh" --toggle || return $?
 }
 
 run_all_scripts() {
