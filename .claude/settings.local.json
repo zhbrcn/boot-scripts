@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(bash -n scripts/sshman.sh)",
+      "Bash(git autopush *)"
     ]
   }
 }
