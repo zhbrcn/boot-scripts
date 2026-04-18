@@ -34,7 +34,7 @@ enable() {
     return 0
   fi
 
-  git config --global alias.autopush '!f() { git add -A; if [ -z "$1" ]; then git commit -m "Auto Push on $(date +%Y-%m-%d\\ %H:%M:%S)"; else git commit -m "$1"; fi; git push; }; f'
+  git config --global alias.autopush '!f() { git add -A; if [ -z "$1" ]; then git commit -m "Auto Push on $(date +"%Y-%m-%d %H:%M:%S")"; else git commit -m "$1"; fi; git push; }; f'
   echo "  autopush enabled"
   echo ""
   echo "  Usage:"

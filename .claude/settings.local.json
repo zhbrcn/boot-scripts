@@ -3,7 +3,8 @@
     "allow": [
       "Bash(git config *)",
       "Bash(bash -n scripts/sshman.sh)",
-      "Bash(git autopush *)"
+      "Bash(git autopush *)",
+      "Bash(bash scripts/autopush.sh)"
     ]
   }
 }
