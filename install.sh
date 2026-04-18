@@ -17,6 +17,7 @@ BOOT_FILES=(
   "scripts/fix-time.sh:0755"
   "scripts/hostname.sh:0755"
   "scripts/sysinfo.sh:0755"
+  "scripts/autopush.sh:0755"
 )
 
 has_cmd() {
