@@ -14,6 +14,7 @@ BOOTSTRAP_SCRIPTS=(
   "fix-time.sh"
   "hostname.sh"
   "sysinfo.sh"
+  "autopush.sh"
 )
 BOOTSTRAP_LIBS=(
   "common.sh"
@@ -253,6 +254,8 @@ interactive_menu() {
   )
 
   has_script sshman && items+=("ssh manager|run_script \"\$SCRIPTS_DIR/sshman.sh\" --interactive")
+
+  has_script autopush && items+=("autopush|run_script \"\$SCRIPTS_DIR/autopush.sh\" --status")
 
   items+=(
     "- Repair -|:"
