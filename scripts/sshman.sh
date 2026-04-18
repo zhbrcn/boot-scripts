@@ -637,6 +637,7 @@ show_main_actions() {
   echo -e "  ${C_CYAN}3)${C_RESET} manage YubiKey HOTP"
   echo -e "  ${C_CYAN}4)${C_RESET} manage fail2ban"
   echo -e "  ${C_CYAN}5)${C_RESET} manual adjustments"
+  echo -e "  ${C_CYAN}6)${C_RESET} manage autopush"
   echo -e "  ${C_CYAN}0)${C_RESET} back"
 }
 
@@ -1147,6 +1148,65 @@ advanced_menu() {
   done
 }
 
+autopush_enabled() {
+  git config --global alias.autopush >/dev/null 2>&1
+}
+
+autopush_status_text() {
+  if autopush_enabled; then
+    echo -e "${C_GREEN}enabled${C_RESET}"
+  else
+    echo -e "${C_DIM}disabled${C_RESET}"
+  fi
+}
+
+enable_autopush() {
+  if autopush_enabled; then
+    info "autopush is already enabled"
+    return 0
+  fi
+  git config --global alias.autopush '!f() { git add -A; if [ -z "$1" ]; then git commit -m "Auto Push on $(date +%Y-%m-%d\\ %H:%M:%S)"; else git commit -m "$1"; fi; git push; }; f'
+  ok "autopush enabled"
+  echo ""
+  echo -e "  ${C_BOLD}Usage:${C_RESET}"
+  echo -e "  ${C_CYAN}git autopush${C_RESET}              ${C_DIM}# commit with timestamp and push${C_RESET}"
+  echo -e "  ${C_CYAN}git autopush \"message\"${C_RESET}    ${C_DIM}# commit with custom message and push${C_RESET}"
+}
+
+disable_autopush() {
+  if ! autopush_enabled; then
+    info "autopush is not enabled"
+    return 0
+  fi
+  git config --global --unset alias.autopush
+  ok "autopush disabled"
+}
+
+manage_autopush_interactive() {
+  local choice
+
+  while true; do
+    refresh_screen
+    show_status
+    echo -e "  ${C_BOLD}Git autopush${C_RESET}"
+    echo -e "  ${C_CYAN}git autopush${C_RESET}              ${C_DIM}add + commit (timestamp) + push${C_RESET}"
+    echo -e "  ${C_CYAN}git autopush \"message\"${C_RESET}    ${C_DIM}add + commit (custom) + push${C_RESET}"
+    echo ""
+    echo -e "  ${C_CYAN}1)${C_RESET} enable autopush"
+    echo -e "  ${C_CYAN}2)${C_RESET} disable autopush"
+    echo -e "  ${C_CYAN}0)${C_RESET} back"
+    echo ""
+    read -rp "  select: " choice
+
+    case "$choice" in
+      1) enable_autopush ;;
+      2) disable_autopush ;;
+      0) return 0 ;;
+      *) warn "invalid choice" ;;
+    esac
+  done
+}
+
 _toggle() {
   local key="$1"
   local desc="$2"
@@ -1217,6 +1277,7 @@ show_status() {
   box_row "Root policy" "$(root_access_summary)"
   box_row "YubiKey" "$(yubikey_status_text)"
   box_row "Fail2ban" "$(fail2ban_status_text)"
+  box_row "Autopush" "$(autopush_status_text)"
   box_row "Authorized keys" "$(key_inventory_summary)"
   box_sep
   box_row "Target user" "$TARGET_USER"
@@ -1304,6 +1365,7 @@ main() {
           3) manage_yubikey_interactive ;;
           4) manage_fail2ban_interactive ;;
           5) advanced_menu ;;
+          6) manage_autopush_interactive ;;
           0) exit 0 ;;
           *) warn "invalid choice" ;;
         esac
