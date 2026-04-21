@@ -12,6 +12,7 @@ BOOT_FILES=(
   "lib/ui.sh:0644"
   "scripts/first-boot.sh:0755"
   "scripts/base-packages.sh:0755"
+  "scripts/tmux-workspace.sh:0755"
   "scripts/network.sh:0755"
   "scripts/sshman.sh:0755"
   "scripts/fix-time.sh:0755"
