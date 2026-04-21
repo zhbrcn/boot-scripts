@@ -9,6 +9,7 @@ is_root() { [[ "${EUID:-$(id -u)}" -eq 0 ]]; }
 BOOTSTRAP_SCRIPTS=(
   "first-boot.sh"
   "base-packages.sh"
+  "tmux-workspace.sh"
   "network.sh"
   "sshman.sh"
   "fix-time.sh"
@@ -266,6 +267,7 @@ interactive_menu() {
   has_script fix-time && items+=("time sync|run_script \"\$SCRIPTS_DIR/fix-time.sh\"")
   has_script hostname && items+=("hostname|run_script \"\$SCRIPTS_DIR/hostname.sh\"")
   has_script base-packages && items+=("base packages|run_script \"\$SCRIPTS_DIR/base-packages.sh\"")
+  has_script tmux-workspace && items+=("tmux workspace|run_script \"\$SCRIPTS_DIR/tmux-workspace.sh\"")
 
   items+=(
     "- Utility -|:"
