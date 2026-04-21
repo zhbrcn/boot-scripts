@@ -9,6 +9,7 @@ is_root() { [[ "${EUID:-$(id -u)}" -eq 0 ]]; }
 BOOTSTRAP_SCRIPTS=(
   "first-boot.sh"
   "base-packages.sh"
+  "tmux-workspace.sh"
   "network.sh"
   "sshman.sh"
   "fix-time.sh"
@@ -242,6 +243,31 @@ has_script() {
   [[ -f "$SCRIPTS_DIR/$1.sh" ]]
 }
 
+autopush_state_label() {
+  if has_script autopush; then
+    local state
+    state="$(bash "$SCRIPTS_DIR/autopush.sh" --status 2>/dev/null || echo "unknown")"
+    printf '%s' "$state"
+  else
+    printf 'missing'
+  fi
+}
+
+tmux_workspace_state_label() {
+  if ! has_script tmux-workspace; then
+    printf 'missing'
+    return 0
+  fi
+
+  local out
+  out="$(bash "$SCRIPTS_DIR/tmux-workspace.sh" --status 2>/dev/null || true)"
+  if grep -q "bashrc: managed" <<< "$out" || grep -q "zshrc: managed" <<< "$out"; then
+    printf 'enabled'
+  else
+    printf 'disabled'
+  fi
+}
+
 interactive_menu() {
   load_ui
   list_scripts >/dev/null
@@ -256,7 +282,7 @@ interactive_menu() {
   has_script sshman && items+=("ssh manager|run_script \"\$SCRIPTS_DIR/sshman.sh\" --interactive")
 
   if has_script autopush; then
-    items+=("autopush|toggle_autopush")
+    items+=("autopush [$(autopush_state_label)]|toggle_autopush")
   fi
 
   items+=(
@@ -266,6 +292,7 @@ interactive_menu() {
   has_script fix-time && items+=("time sync|run_script \"\$SCRIPTS_DIR/fix-time.sh\"")
   has_script hostname && items+=("hostname|run_script \"\$SCRIPTS_DIR/hostname.sh\"")
   has_script base-packages && items+=("base packages|run_script \"\$SCRIPTS_DIR/base-packages.sh\"")
+  has_script tmux-workspace && items+=("tmux workspace [$(tmux_workspace_state_label)]|toggle_tmux_workspace")
 
   items+=(
     "- Utility -|:"
@@ -278,10 +305,36 @@ interactive_menu() {
 toggle_autopush() {
   local ret=0
   run_script "$SCRIPTS_DIR/autopush.sh" --toggle || ret=$?
+  local state
+  state="$(bash "$SCRIPTS_DIR/autopush.sh" --status 2>/dev/null || echo "unknown")"
   echo ""
-  printf '  current state: '
-  bash "$SCRIPTS_DIR/autopush.sh" --status || true
+  if [[ "$state" == "enabled" ]]; then
+    echo "  autopush enabled"
+  elif [[ "$state" == "disabled" ]]; then
+    echo "  autopush disabled"
+  else
+    echo "  autopush state unknown"
+  fi
+  printf '  current state: %s\n' "$state"
   echo ""
+  read -rp "  press enter to continue..." _ || true
+  return "$ret"
+}
+
+toggle_tmux_workspace() {
+  local ret=0
+  run_script "$SCRIPTS_DIR/tmux-workspace.sh" --toggle || ret=$?
+  local state
+  state="$(tmux_workspace_state_label)"
+  echo ""
+  if [[ "$state" == "enabled" ]]; then
+    echo "  tmux workspace auto-attach enabled"
+  elif [[ "$state" == "disabled" ]]; then
+    echo "  tmux workspace auto-attach disabled"
+  else
+    echo "  tmux workspace state unknown"
+  fi
+  printf '  current state: %s\n' "$state"
   read -rp "  press enter to continue..." _ || true
   return "$ret"
 }
