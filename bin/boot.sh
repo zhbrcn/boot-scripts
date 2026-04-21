@@ -272,53 +272,52 @@ interactive_menu() {
   load_ui
   list_scripts >/dev/null
 
-  local items=(
-    "- System -|:"
-    "first boot|run_script \"\$SCRIPTS_DIR/first-boot.sh\""
-    "system info|run_script \"\$SCRIPTS_DIR/sysinfo.sh\" --hold"
-    "- Access -|:"
-  )
+  local choice
+  while true; do
+    refresh_screen
+    echo "boot-scripts"
+    echo ""
+    echo "- System -"
+    echo "  1) first boot"
+    echo "  2) system info"
+    echo "- Access -"
+    echo "  3) ssh manager"
+    echo "  4) autopush [$(autopush_state_label)]"
+    echo "- Repair -"
+    echo "  5) network"
+    echo "  6) time sync"
+    echo "  7) hostname"
+    echo "  8) base packages"
+    echo "  9) tmux workspace [$(tmux_workspace_state_label)]"
+    echo "- Utility -"
+    echo " 10) refresh scripts"
+    echo "  0) back"
+    echo ""
+    read -rp "  select: " choice
 
-  has_script sshman && items+=("ssh manager|run_script \"\$SCRIPTS_DIR/sshman.sh\" --interactive")
-
-  if has_script autopush; then
-    items+=("autopush [$(autopush_state_label)]|toggle_autopush")
-  fi
-
-  items+=(
-    "- Repair -|:"
-  )
-  has_script network && items+=("network|run_script \"\$SCRIPTS_DIR/network.sh\"")
-  has_script fix-time && items+=("time sync|run_script \"\$SCRIPTS_DIR/fix-time.sh\"")
-  has_script hostname && items+=("hostname|run_script \"\$SCRIPTS_DIR/hostname.sh\"")
-  has_script base-packages && items+=("base packages|run_script \"\$SCRIPTS_DIR/base-packages.sh\"")
-  has_script tmux-workspace && items+=("tmux workspace [$(tmux_workspace_state_label)]|toggle_tmux_workspace")
-
-  items+=(
-    "- Utility -|:"
-    "refresh scripts|bootstrap_scripts \"\$SCRIPTS_DIR\""
-  )
-
-  menu "boot-scripts" "${items[@]}"
+    case "$choice" in
+      1) has_script first-boot && run_script "$SCRIPTS_DIR/first-boot.sh" ;;
+      2) has_script sysinfo && run_script "$SCRIPTS_DIR/sysinfo.sh" --hold ;;
+      3) has_script sshman && run_script "$SCRIPTS_DIR/sshman.sh" --interactive ;;
+      4) has_script autopush && toggle_autopush ;;
+      5) has_script network && run_script "$SCRIPTS_DIR/network.sh" ;;
+      6) has_script fix-time && run_script "$SCRIPTS_DIR/fix-time.sh" ;;
+      7) has_script hostname && run_script "$SCRIPTS_DIR/hostname.sh" ;;
+      8) has_script base-packages && run_script "$SCRIPTS_DIR/base-packages.sh" ;;
+      9) has_script tmux-workspace && toggle_tmux_workspace ;;
+      10) bootstrap_scripts "$SCRIPTS_DIR" ;;
+      0|q|Q|"") return 0 ;;
+      *) ;;
+    esac
+  done
 }
 
 toggle_autopush() {
-  local ret=0
-  run_script "$SCRIPTS_DIR/autopush.sh" --toggle || ret=$?
-  local state
-  state="$(bash "$SCRIPTS_DIR/autopush.sh" --status 2>/dev/null || echo "unknown")"
-  echo ""
-  if [[ "$state" == "enabled" ]]; then
-    echo "  autopush enabled"
-  elif [[ "$state" == "disabled" ]]; then
-    echo "  autopush disabled"
-  else
-    echo "  autopush state unknown"
-  fi
-  printf '  current state: %s\n' "$state"
-  echo ""
-  read -rp "  press enter to continue..." _ || true
-  return "$ret"
+  bash "$SCRIPTS_DIR/autopush.sh" --toggle >/dev/null 2>&1 || return $?
+}
+
+toggle_tmux_workspace() {
+  bash "$SCRIPTS_DIR/tmux-workspace.sh" --toggle >/dev/null 2>&1 || return $?
 }
 
 toggle_tmux_workspace() {
