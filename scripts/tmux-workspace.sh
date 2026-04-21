@@ -242,9 +242,8 @@ main() {
       if is_enabled; then
         remove_shell_block "$BASHRC_FILE"
         remove_shell_block "$ZSHRC_FILE"
-        echo "done: tmux auto-attach disabled"
       else
-        apply
+        apply >/dev/null 2>&1
       fi
       ;;
     status) status ;;

@@ -258,6 +258,7 @@ tmux_workspace_state_label() {
     printf 'missing'
     return 0
   fi
+}
 
   local out
   out="$(bash "$SCRIPTS_DIR/tmux-workspace.sh" --status 2>/dev/null || true)"
@@ -318,24 +319,6 @@ toggle_autopush() {
 
 toggle_tmux_workspace() {
   bash "$SCRIPTS_DIR/tmux-workspace.sh" --toggle >/dev/null 2>&1 || return $?
-}
-
-toggle_tmux_workspace() {
-  local ret=0
-  run_script "$SCRIPTS_DIR/tmux-workspace.sh" --toggle || ret=$?
-  local state
-  state="$(tmux_workspace_state_label)"
-  echo ""
-  if [[ "$state" == "enabled" ]]; then
-    echo "  tmux workspace auto-attach enabled"
-  elif [[ "$state" == "disabled" ]]; then
-    echo "  tmux workspace auto-attach disabled"
-  else
-    echo "  tmux workspace state unknown"
-  fi
-  printf '  current state: %s\n' "$state"
-  read -rp "  press enter to continue..." _ || true
-  return "$ret"
 }
 
 run_all_scripts() {
