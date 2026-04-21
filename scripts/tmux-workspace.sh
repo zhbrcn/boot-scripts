@@ -16,12 +16,13 @@ usage() {
 tmux-workspace.sh - Configure SSH login auto-attach to tmux session '${SESSION_NAME}'
 
 Usage:
-  tmux-workspace.sh [--session <name>] [--apply] [--remove] [--status]
+  tmux-workspace.sh [--session <name>] [--apply] [--remove] [--toggle] [--status]
 
 Options:
   --session <name>  Override tmux session name (default: main)
   --apply           Install or update tmux + shell auto-attach config (default)
   --remove          Remove managed auto-attach block from shell rc files
+  --toggle          Toggle managed shell auto-attach block on/off
   --status          Show current configuration status
   -h, --help        Show this help
 EOF2
@@ -169,6 +170,16 @@ status() {
   echo "tmux.conf: $conf_state ($TMUX_CONF_FILE)"
 }
 
+is_enabled() {
+  if [[ -f "$BASHRC_FILE" ]] && grep -qF "$AUTOBLOCK_BEGIN" "$BASHRC_FILE"; then
+    return 0
+  fi
+  if [[ -f "$ZSHRC_FILE" ]] && grep -qF "$AUTOBLOCK_BEGIN" "$ZSHRC_FILE"; then
+    return 0
+  fi
+  return 1
+}
+
 apply() {
   install_tmux
   write_tmux_conf
@@ -204,6 +215,10 @@ main() {
         action="status"
         shift
         ;;
+      --toggle)
+        action="toggle"
+        shift
+        ;;
       -h|--help)
         usage
         exit 0
@@ -222,6 +237,15 @@ main() {
       remove_shell_block "$BASHRC_FILE"
       remove_shell_block "$ZSHRC_FILE"
       echo "removed managed shell blocks from $BASHRC_FILE and $ZSHRC_FILE"
+      ;;
+    toggle)
+      if is_enabled; then
+        remove_shell_block "$BASHRC_FILE"
+        remove_shell_block "$ZSHRC_FILE"
+        echo "done: tmux auto-attach disabled"
+      else
+        apply
+      fi
       ;;
     status) status ;;
   esac
