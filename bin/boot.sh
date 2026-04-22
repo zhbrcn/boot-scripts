@@ -252,26 +252,21 @@ autopush_state_label() {
   fi
 }
 
-tmux_workspace_state_label() {
-  if ! has_script tmux-workspace; then
-    printf 'missing'
-    return 0
-  fi
-}
-
-  if bash "$SCRIPTS_DIR/tmux-workspace.sh" --status 2>/dev/null | grep -Eq '^(bashrc|zshrc): managed'; then
-    printf 'enabled'
-  else
-    printf 'disabled'
-  fi
-}
-
 interactive_menu() {
   load_ui
   list_scripts >/dev/null
 
   local choice
+  local tmux_state
   while true; do
+    tmux_state="missing"
+    if has_script tmux-workspace; then
+      tmux_state="disabled"
+      if bash "$SCRIPTS_DIR/tmux-workspace.sh" --status 2>/dev/null | grep -Eq '^(bashrc|zshrc): managed'; then
+        tmux_state="enabled"
+      fi
+    fi
+
     refresh_screen
     echo "boot-scripts"
     echo ""
@@ -286,7 +281,7 @@ interactive_menu() {
     echo "  6) time sync"
     echo "  7) hostname"
     echo "  8) base packages"
-    echo "  9) tmux workspace [$(tmux_workspace_state_label)]"
+    echo "  9) tmux workspace [$tmux_state]"
     echo "- Utility -"
     echo " 10) refresh scripts"
     echo "  0) back"
