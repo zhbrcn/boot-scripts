@@ -260,7 +260,7 @@ tmux_workspace_state_label() {
 }
 
   out="$(bash "$SCRIPTS_DIR/tmux-workspace.sh" --status 2>/dev/null || true)"
-  if grep -q "bashrc: managed" <<< "$out" || grep -q "zshrc: managed" <<< "$out"; then
+  if printf '%s\n' "$out" | grep -q "bashrc: managed" || printf '%s\n' "$out" | grep -q "zshrc: managed"; then
     printf 'enabled'
   else
     printf 'disabled'
