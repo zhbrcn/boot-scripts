@@ -16,6 +16,7 @@ This project is aimed at a small set of practical first-day tasks on Debian/Ubun
 - time repair
 - DNS / timezone / connectivity checks
 - installation of a few common base package sets
+- SSH login auto-attach to a persistent tmux workspace
 - quick machine summary and health checks
 
 ## Included scripts
@@ -29,6 +30,7 @@ This project is aimed at a small set of practical first-day tasks on Debian/Ubun
 | `fix-time` | Repair system time with NTP first and HTTP fallback second |
 | `hostname` | Set hostname and keep `/etc/hosts` aligned |
 | `base-packages` | Install common package groups for a fresh host |
+| `tmux-workspace` | Configure SSH login auto-attach to a fixed tmux session |
 
 ## One-line install
 
@@ -84,6 +86,7 @@ boot-scripts/
 |   |-- first-boot.sh
 |   |-- fix-time.sh
 |   |-- hostname.sh
+|   |-- tmux-workspace.sh
 |   |-- network.sh
 |   |-- sshman.sh
 |   `-- sysinfo.sh
