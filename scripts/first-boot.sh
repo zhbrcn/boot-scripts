@@ -70,7 +70,7 @@ guided_run() {
   refresh_screen
   section "first boot"
   box_row "Goal" "prepare a fresh Debian/Ubuntu host"
-  box_row "Flow" "hostname -> network -> time -> SSH -> base packages"
+  box_row "Flow" "hostname -> network -> time -> SSH -> packages -> tmux"
   section_end
 
   if prompt_yes "set hostname now?"; then
@@ -99,6 +99,10 @@ guided_run() {
 
   if prompt_yes "install network package set?"; then
     run_local_script base-packages --profile network
+  fi
+
+  if prompt_yes "configure SSH auto-attach tmux workspace?"; then
+    run_local_script tmux-workspace --apply
   fi
 
   show_summary
