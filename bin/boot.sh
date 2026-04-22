@@ -245,7 +245,6 @@ has_script() {
 
 autopush_state_label() {
   if has_script autopush; then
-    local state
     state="$(bash "$SCRIPTS_DIR/autopush.sh" --status 2>/dev/null || echo "unknown")"
     printf '%s' "$state"
   else
@@ -260,7 +259,6 @@ tmux_workspace_state_label() {
   fi
 }
 
-  local out
   out="$(bash "$SCRIPTS_DIR/tmux-workspace.sh" --status 2>/dev/null || true)"
   if grep -q "bashrc: managed" <<< "$out" || grep -q "zshrc: managed" <<< "$out"; then
     printf 'enabled'

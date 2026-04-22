@@ -101,11 +101,11 @@ main() {
 
   echo "starting menu..."
   if attach_tty; then
-    BOOT_SCRIPTS_DIR="$scripts_dir" "$boot_sh" --menu </dev/tty >/dev/tty 2>/dev/tty
+    BOOT_SCRIPTS_DIR="$scripts_dir" bash "$boot_sh" --menu </dev/tty >/dev/tty 2>/dev/tty
   else
     echo "warning: no interactive tty detected, skipping menu" >&2
     echo "run this manually to open the menu:"
-    echo "  BOOT_SCRIPTS_DIR=$scripts_dir $boot_sh --menu"
+    echo "  BOOT_SCRIPTS_DIR=$scripts_dir bash $boot_sh --menu"
   fi
 }
 
