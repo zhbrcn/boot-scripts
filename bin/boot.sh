@@ -257,6 +257,7 @@ tmux_workspace_state_label() {
     printf 'missing'
     return 0
   fi
+}
 
   out="$(bash "$SCRIPTS_DIR/tmux-workspace.sh" --status 2>/dev/null || true)"
   if grep -q "bashrc: managed" <<< "$out" || grep -q "zshrc: managed" <<< "$out"; then
