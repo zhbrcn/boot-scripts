@@ -12,6 +12,7 @@ BOOT_FILES=(
   "lib/ui.sh:0644"
   "scripts/first-boot.sh:0755"
   "scripts/base-packages.sh:0755"
+  "scripts/tmux-workspace.sh:0755"
   "scripts/network.sh:0755"
   "scripts/sshman.sh:0755"
   "scripts/fix-time.sh:0755"
@@ -100,11 +101,11 @@ main() {
 
   echo "starting menu..."
   if attach_tty; then
-    BOOT_SCRIPTS_DIR="$scripts_dir" "$boot_sh" --menu </dev/tty >/dev/tty 2>/dev/tty
+    BOOT_SCRIPTS_DIR="$scripts_dir" bash "$boot_sh" --menu </dev/tty >/dev/tty 2>/dev/tty
   else
     echo "warning: no interactive tty detected, skipping menu" >&2
     echo "run this manually to open the menu:"
-    echo "  BOOT_SCRIPTS_DIR=$scripts_dir $boot_sh --menu"
+    echo "  BOOT_SCRIPTS_DIR=$scripts_dir bash $boot_sh --menu"
   fi
 }
 
