@@ -97,7 +97,11 @@ main() {
   printf '%s\n' "$scripts_dir" > "${INSTALL_DIR}/bin/.boot-scripts-dir"
 
   echo "enabling autopush..."
-  "$scripts_dir/autopush.sh" --enable
+  if "$scripts_dir/autopush.sh" --enable >/dev/null 2>&1; then
+    echo "  autopush enabled"
+  else
+    echo "  warning: failed to enable autopush" >&2
+  fi
 
   echo "starting menu..."
   if attach_tty; then
