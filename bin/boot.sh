@@ -257,6 +257,7 @@ tmux_workspace_state_label() {
     printf 'missing'
     return 0
   fi
+}
 
   if bash "$SCRIPTS_DIR/tmux-workspace.sh" --status 2>/dev/null | grep -Eq '^(bashrc|zshrc): managed'; then
     printf 'enabled'
